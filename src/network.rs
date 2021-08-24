@@ -346,21 +346,30 @@ impl<'a> Network<'a> {
       )
       .await;
 
-    if let Ok(Some(c)) = context {
-      let mut app = self.app.lock().await;
-      app.current_playback_context = Some(c.clone());
-      app.instant_since_last_current_playback_poll = Instant::now();
+    match context {
+      Ok(Some(c)) => {
+        let mut app = self.app.lock().await;
+        app.current_playback_context = Some(c.clone());
+        app.instant_since_last_current_playback_poll = Instant::now();
 
-      if let Some(item) = c.item {
-        match item {
-          PlayingItem::Track(track) => {
-            if let Some(track_id) = track.id {
-              app.dispatch(IoEvent::CurrentUserSavedTracksContains(vec![track_id]));
-            };
+        if let Some(item) = c.item {
+          match item {
+            PlayingItem::Track(track) => {
+              if let Some(track_id) = track.id {
+                app.dispatch(IoEvent::CurrentUserSavedTracksContains(vec![track_id]));
+              };
+            }
+            PlayingItem::Episode(_episode) => { /*should map this to following the podcast show*/ }
           }
-          PlayingItem::Episode(_episode) => { /*should map this to following the podcast show*/ }
-        }
-      };
+        };
+      }
+      Ok(None) => {
+        let mut app = self.app.lock().await;
+        app.instant_since_last_current_playback_poll = Instant::now();
+      }
+      Err(e) => {
+        self.handle_error(anyhow!(e)).await;
+      }
     }
 
     let mut app = self.app.lock().await;
@@ -1035,10 +1044,7 @@ impl<'a> Network<'a> {
 
   async fn get_recommendations_for_track_id(&mut self, id: String, country: Option<Country>) {
     if let Ok(track) = self.spotify.track(&id).await {
-      let track_id_list: Option<Vec<String>> = match &track.id {
-        Some(id) => Some(vec![id.to_string()]),
-        None => None,
-      };
+      let track_id_list = track.id.as_ref().map(|id| vec![id.to_string()]);
       self
         .get_recommendations_for_seed(None, track_id_list, Box::new(Some(track)), country)
         .await;

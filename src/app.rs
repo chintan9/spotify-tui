@@ -626,11 +626,18 @@ impl App {
   // The navigation_stack actually only controls the large block to the right of `library` and
   // `playlists`
   pub fn push_navigation_stack(&mut self, next_route_id: RouteId, next_active_block: ActiveBlock) {
-    self.navigation_stack.push(Route {
-      id: next_route_id,
-      active_block: next_active_block,
-      hovered_block: next_active_block,
-    });
+    if !self
+      .navigation_stack
+      .last()
+      .map(|last_route| last_route.id == next_route_id)
+      .unwrap_or(false)
+    {
+      self.navigation_stack.push(Route {
+        id: next_route_id,
+        active_block: next_active_block,
+        hovered_block: next_active_block,
+      });
+    }
   }
 
   pub fn pop_navigation_stack(&mut self) -> Option<Route> {
@@ -779,7 +786,7 @@ impl App {
     }
 
     if let Some(saved_artists) = &self.library.saved_artists.get_results(None).cloned() {
-      self.set_saved_artists_to_table(&saved_artists);
+      self.set_saved_artists_to_table(saved_artists);
     }
   }
 
@@ -810,7 +817,7 @@ impl App {
     }
 
     if let Some(saved_tracks) = &self.library.saved_tracks.get_results(None).cloned() {
-      self.set_saved_tracks_to_table(&saved_tracks);
+      self.set_saved_tracks_to_table(saved_tracks);
     }
   }
 
